@@ -32,6 +32,24 @@ public struct TestFlow: Sendable, Identifiable {
         _ id: String,
         title: String? = nil,
         tags: Set<String> = [],
+        operation: @escaping @Sendable () async throws -> [TestFlowDiagnostic]
+    ) {
+        self.init(
+            id: id,
+            title: title,
+            tags: tags
+        ) {
+            .passed(
+                name: id,
+                diagnostics: try await operation()
+            )
+        }
+    }
+
+    public init(
+        _ id: String,
+        title: String? = nil,
+        tags: Set<String> = [],
         @TestFlowActionBuilder actions: () -> [TestFlowAction]
     ) {
         let script = TestFlowScript(
