@@ -1,0 +1,33 @@
+{
+  "originHash" : "7f71681ecdb83b209e1ac00328efedfc40e01254a17c53f3f10de6e08758fd47",
+  "pins" : [
+    {
+      "identity" : "ansi",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/leviouwendijk/ANSI.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "073d9ca7870b688a312608acf14eae6ba052c0d6"
+      }
+    },
+    {
+      "identity" : "primitives",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/leviouwendijk/Primitives.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "67969389bcee783f45c7fc1df75a63cacc7eaf17"
+      }
+    },
+    {
+      "identity" : "terminal",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/leviouwendijk/Terminal.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "d4a3338604127da3c6e8c42ff62d8468cbfe9f4a"
+      }
+    }
+  ],
+  "version" : 3
+}
