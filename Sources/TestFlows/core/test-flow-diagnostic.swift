@@ -1,13 +1,24 @@
-public enum TestFlowDiagnostic: Sendable, Hashable, ExpressibleByStringLiteral, CustomStringConvertible {
+public enum TestFlowDiagnostic: Sendable, Hashable, ExpressibleByStringInterpolation, CustomStringConvertible {
     case message(String)
     case field(String, String)
     case section(String, [String])
     case event(String)
+    case diff(String, String)
 
     public init(
-        stringLiteral value: StringLiteralType
+        stringLiteral value: String
     ) {
         self = .message(value)
+    }
+
+    public init(
+        stringInterpolation: DefaultStringInterpolation
+    ) {
+        self = .message(
+            String(
+                stringInterpolation: stringInterpolation
+            )
+        )
     }
 
     public var description: String {
@@ -29,12 +40,28 @@ public enum TestFlowDiagnostic: Sendable, Hashable, ExpressibleByStringLiteral, 
 
         case .event(let value):
             return value
+
+        case .diff(let title, let value):
+            guard !title.isEmpty else {
+                return value
+            }
+
+            guard !value.isEmpty else {
+                return title
+            }
+
+            return [
+                title,
+                value
+            ].joined(
+                separator: "\n"
+            )
         }
     }
 }
 
 public extension TestFlowDiagnostic {
-    static func field<T>(
+    static func value<T>(
         _ name: String,
         _ value: T
     ) -> Self {

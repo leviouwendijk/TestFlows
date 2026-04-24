@@ -1,6 +1,7 @@
 public protocol TestFlowCase: RawRepresentable, CaseIterable, Sendable
 where RawValue == String, AllCases: Collection, AllCases.Element == Self {
     var displayName: String { get }
+    var tags: Set<String> { get }
 
     func run() async throws -> TestFlowResult
 }
@@ -8,5 +9,9 @@ where RawValue == String, AllCases: Collection, AllCases.Element == Self {
 public extension TestFlowCase {
     var displayName: String {
         rawValue
+    }
+
+    var tags: Set<String> {
+        []
     }
 }

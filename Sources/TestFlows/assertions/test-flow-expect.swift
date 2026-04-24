@@ -75,7 +75,7 @@ public extension Expect {
         return actual
     }
 
-    static func nil<T>(
+    static func isNil<T>(
         _ actual: T?,
         _ label: String
     ) throws {
