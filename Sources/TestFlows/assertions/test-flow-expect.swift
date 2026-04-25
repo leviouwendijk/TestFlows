@@ -59,6 +59,7 @@ public extension Expect {
         }
     }
 
+    @discardableResult
     static func notNil<T>(
         _ actual: T?,
         _ label: String
