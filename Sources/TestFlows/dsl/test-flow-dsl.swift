@@ -68,6 +68,55 @@ public func Check(
     )
 }
 
+public func Skip(
+    _ reason: String,
+    diagnostics: [TestFlowDiagnostic] = []
+) -> TestFlowAction {
+    TestFlowAction(
+        name: "skip",
+        kind: .diagnostic
+    ) { _ in
+        throw TestFlowSkip(
+            reason,
+            diagnostics: diagnostics
+        )
+    }
+}
+
+public func Skip(
+    if condition: Bool,
+    _ reason: String,
+    diagnostics: [TestFlowDiagnostic] = []
+) -> TestFlowAction {
+    TestFlowAction(
+        name: "skip.if",
+        kind: .diagnostic
+    ) { _ in
+        try TestFlowSkip.when(
+            condition,
+            reason,
+            diagnostics: diagnostics
+        )
+    }
+}
+
+public func Skip(
+    unless condition: Bool,
+    _ reason: String,
+    diagnostics: [TestFlowDiagnostic] = []
+) -> TestFlowAction {
+    TestFlowAction(
+        name: "skip.unless",
+        kind: .diagnostic
+    ) { _ in
+        try TestFlowSkip.unless(
+            condition,
+            reason,
+            diagnostics: diagnostics
+        )
+    }
+}
+
 public func Note(
     _ message: String
 ) -> TestFlowAction {
@@ -120,6 +169,74 @@ public func Event(
     ) { context in
         await context.event(
             name
+        )
+    }
+}
+
+public func Table(
+    _ title: String,
+    columns: [String],
+    rows: [[String]]
+) -> TestFlowAction {
+    TestFlowAction(
+        name: "table.\(title)",
+        kind: .diagnostic
+    ) { context in
+        await context.table(
+            title,
+            columns: columns,
+            rows: rows
+        )
+    }
+}
+
+public func Timeline(
+    _ title: String,
+    _ entries: [TestFlowTimelineEntry]
+) -> TestFlowAction {
+    TestFlowAction(
+        name: "timeline.\(title)",
+        kind: .diagnostic
+    ) { context in
+        await context.timeline(
+            title,
+            entries
+        )
+    }
+}
+
+public func Metric<T: Sendable>(
+    _ name: String,
+    _ value: T,
+    unit: String? = nil
+) -> TestFlowAction {
+    TestFlowAction(
+        name: "metric.\(name)",
+        kind: .diagnostic
+    ) { context in
+        await context.metric(
+            name,
+            value,
+            unit: unit
+        )
+    }
+}
+
+public func Command(
+    _ command: String,
+    exitCode: Int32? = nil,
+    stdout: String = "",
+    stderr: String = ""
+) -> TestFlowAction {
+    TestFlowAction(
+        name: "command",
+        kind: .diagnostic
+    ) { context in
+        await context.command(
+            command,
+            exitCode: exitCode,
+            stdout: stdout,
+            stderr: stderr
         )
     }
 }

@@ -67,4 +67,21 @@ public extension TestFlowActionResult {
             diagnostics: diagnostics
         )
     }
+
+    static func skipped(
+        name: String,
+        kind: TestFlowActionKind,
+        startedAt: Date = Date(),
+        endedAt: Date = Date(),
+        diagnostics: [TestFlowDiagnostic] = []
+    ) -> Self {
+        .init(
+            name: name,
+            kind: kind,
+            status: .skipped,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            diagnostics: diagnostics
+        )
+    }
 }

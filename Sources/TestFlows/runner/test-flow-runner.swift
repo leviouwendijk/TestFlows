@@ -149,19 +149,48 @@ private extension TestFlowRunner {
     ) async -> TestFlowResult {
         let startedAt = Date()
 
+        if let skipReason = testCase.skipReason {
+            return .skipped(
+                name: testCase.rawValue,
+                displayName: testCase.displayName,
+                reason: skipReason,
+                startedAt: startedAt,
+                endedAt: Date(),
+                tags: testCase.tags
+            )
+        }
+
         do {
             let result = try await testCase.run()
             let endedAt = Date()
 
-            return result.withRun(
+            var final = result.withRun(
                 name: testCase.rawValue,
                 displayName: testCase.displayName,
                 tags: testCase.tags,
                 startedAt: startedAt,
                 endedAt: endedAt
             )
+
+            if let expectedFailure = testCase.expectedFailure {
+                final = final.markExpectedFailure(
+                    reason: expectedFailure
+                )
+            }
+
+            return final
+        } catch let skip as TestFlowSkip {
+            return .skipped(
+                name: testCase.rawValue,
+                displayName: testCase.displayName,
+                reason: skip.reason,
+                startedAt: startedAt,
+                endedAt: Date(),
+                tags: testCase.tags,
+                diagnostics: skip.diagnostics
+            )
         } catch {
-            return .failed(
+            var final = TestFlowResult.failed(
                 name: testCase.rawValue,
                 displayName: testCase.displayName,
                 startedAt: startedAt,
@@ -171,6 +200,14 @@ private extension TestFlowRunner {
                     for: error
                 )
             )
+
+            if let expectedFailure = testCase.expectedFailure {
+                final = final.markExpectedFailure(
+                    reason: expectedFailure
+                )
+            }
+
+            return final
         }
     }
 

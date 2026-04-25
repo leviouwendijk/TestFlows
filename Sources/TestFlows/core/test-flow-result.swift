@@ -88,7 +88,9 @@ public extension TestFlowResult {
         reason: String,
         startedAt: Date = Date(),
         endedAt: Date = Date(),
-        tags: Set<String> = []
+        tags: Set<String> = [],
+        diagnostics: [TestFlowDiagnostic] = [],
+        steps: [TestFlowActionResult] = []
     ) -> Self {
         .init(
             name: name,
@@ -102,7 +104,8 @@ public extension TestFlowResult {
                     "reason",
                     reason
                 )
-            ]
+            ] + diagnostics,
+            steps: steps
         )
     }
 

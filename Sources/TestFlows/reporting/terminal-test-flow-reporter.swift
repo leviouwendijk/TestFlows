@@ -307,6 +307,44 @@ private extension TerminalTestFlowRenderer {
                 indentOffset: indentOffset
             )
 
+        case .table(let title, let table):
+            appendTable(
+                title: title,
+                table: table,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset
+            )
+
+        case .timeline(let title, let entries):
+            appendTimeline(
+                title: title,
+                entries: entries,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset
+            )
+
+        case .metric(let metric):
+            appendMetric(
+                metric,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset
+            )
+
+        case .command(let command):
+            appendCommand(
+                command,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset
+            )
+
         case .message(let value):
             appendWrapped(
                 value,
@@ -423,6 +461,243 @@ private extension TerminalTestFlowRenderer {
                 "\(spaces(layout.diagnosticIndent + 4 + indentOffset))\(item)"
             )
         }
+    }
+
+    func appendTable(
+        title: String,
+        table: TestFlowTable,
+        to lines: inout [String],
+        layout: TerminalTestFlowReportLayout,
+        configuration: TestFlowReportConfiguration,
+        indentOffset: Int = 0
+    ) {
+        _ = configuration
+
+        lines.append(
+            "\(spaces(layout.diagnosticIndent + indentOffset))\(title)"
+        )
+
+        guard !table.columns.isEmpty else {
+            for row in table.rows {
+                lines.append(
+                    "\(spaces(layout.diagnosticIndent + 4 + indentOffset))\(row.joined(separator: " | "))"
+                )
+            }
+
+            return
+        }
+
+        let widths = tableWidths(
+            table
+        )
+        let bodyIndent = spaces(
+            layout.diagnosticIndent + 4 + indentOffset
+        )
+
+        lines.append(
+            "\(bodyIndent)\(tableRow(table.columns, widths: widths))"
+        )
+        lines.append(
+            "\(bodyIndent)\(tableSeparator(widths))"
+        )
+
+        for row in table.rows {
+            lines.append(
+                "\(bodyIndent)\(tableRow(row, widths: widths))"
+            )
+        }
+    }
+
+    func appendTimeline(
+        title: String,
+        entries: [TestFlowTimelineEntry],
+        to lines: inout [String],
+        layout: TerminalTestFlowReportLayout,
+        configuration: TestFlowReportConfiguration,
+        indentOffset: Int = 0
+    ) {
+        _ = configuration
+
+        lines.append(
+            "\(spaces(layout.diagnosticIndent + indentOffset))\(title)"
+        )
+
+        guard !entries.isEmpty else {
+            lines.append(
+                "\(spaces(layout.diagnosticIndent + 4 + indentOffset))<empty>"
+            )
+
+            return
+        }
+
+        let timeWidth = max(
+            4,
+            entries.map(\.time.count).max() ?? 4
+        )
+
+        for entry in entries {
+            let time = padded(
+                entry.time,
+                width: timeWidth
+            )
+            let detail = entry.detail.map {
+                "  \($0)"
+            } ?? ""
+
+            lines.append(
+                "\(spaces(layout.diagnosticIndent + 4 + indentOffset))\(time)  \(entry.name)\(detail)"
+            )
+        }
+    }
+
+    func appendMetric(
+        _ metric: TestFlowMetric,
+        to lines: inout [String],
+        layout: TerminalTestFlowReportLayout,
+        configuration: TestFlowReportConfiguration,
+        indentOffset: Int = 0
+    ) {
+        let value = metric.unit.map {
+            "\(metric.value) \($0)"
+        } ?? metric.value
+
+        appendField(
+            name: metric.name,
+            value: value,
+            to: &lines,
+            layout: layout,
+            configuration: configuration,
+            indentOffset: indentOffset
+        )
+    }
+
+    func appendCommand(
+        _ command: TestFlowCommandDiagnostic,
+        to lines: inout [String],
+        layout: TerminalTestFlowReportLayout,
+        configuration: TestFlowReportConfiguration,
+        indentOffset: Int = 0
+    ) {
+        lines.append(
+            "\(spaces(layout.diagnosticIndent + indentOffset))command"
+        )
+
+        appendField(
+            name: "run",
+            value: command.command,
+            to: &lines,
+            layout: layout,
+            configuration: configuration,
+            indentOffset: indentOffset + 4
+        )
+
+        if let exitCode = command.exitCode {
+            appendField(
+                name: "exit",
+                value: String(
+                    exitCode
+                ),
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset + 4
+            )
+        }
+
+        if !command.stdout.isEmpty {
+            appendSection(
+                title: "stdout",
+                sectionLines: command.stdout.split(
+                    separator: "\n",
+                    omittingEmptySubsequences: false
+                ).map(String.init),
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset + 4
+            )
+        }
+
+        if !command.stderr.isEmpty {
+            appendSection(
+                title: "stderr",
+                sectionLines: command.stderr.split(
+                    separator: "\n",
+                    omittingEmptySubsequences: false
+                ).map(String.init),
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset + 4
+            )
+        }
+    }
+
+    func tableWidths(
+        _ table: TestFlowTable
+    ) -> [Int] {
+        var widths: [Int] = []
+
+        for (index, column) in table.columns.enumerated() {
+            var width = column.count
+
+            for row in table.rows {
+                width = max(
+                    width,
+                    tableCell(
+                        row,
+                        index: index
+                    ).count
+                )
+            }
+
+            widths.append(
+                width
+            )
+        }
+
+        return widths
+    }
+
+    func tableRow(
+        _ row: [String],
+        widths: [Int]
+    ) -> String {
+        widths.enumerated().map { index, width in
+            padded(
+                tableCell(
+                    row,
+                    index: index
+                ),
+                width: width
+            )
+        }.joined(
+            separator: " | "
+        )
+    }
+
+    func tableSeparator(
+        _ widths: [Int]
+    ) -> String {
+        widths.map { width in
+            String(
+                repeating: "-",
+                count: width
+            )
+        }.joined(
+            separator: "-+-"
+        )
+    }
+
+    func tableCell(
+        _ row: [String],
+        index: Int
+    ) -> String {
+        guard index < row.count else {
+            return ""
+        }
+
+        return row[index]
     }
 
     func collapsedAdjacentEvents(
@@ -580,6 +855,12 @@ private extension TerminalTestFlowRenderer {
         let skipped = results.filter {
             $0.status == .skipped
         }.count
+        let expectedFailures = results.filter {
+            $0.status == .expected_failure
+        }.count
+        let unexpectedPasses = results.filter {
+            $0.status == .unexpected_pass
+        }.count
 
         if failed == 0 {
             var parts = [
@@ -589,6 +870,12 @@ private extension TerminalTestFlowRenderer {
             if skipped > 0 {
                 parts.append(
                     "\(skipped) skipped"
+                )
+            }
+
+            if expectedFailures > 0 {
+                parts.append(
+                    "\(expectedFailures) expected failure"
                 )
             }
 
@@ -612,6 +899,18 @@ private extension TerminalTestFlowRenderer {
         if skipped > 0 {
             parts.append(
                 "\(skipped) skipped"
+            )
+        }
+
+        if expectedFailures > 0 {
+            parts.append(
+                "\(expectedFailures) expected failure"
+            )
+        }
+
+        if unexpectedPasses > 0 {
+            parts.append(
+                "\(unexpectedPasses) unexpected pass"
             )
         }
 

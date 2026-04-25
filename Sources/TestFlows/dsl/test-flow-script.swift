@@ -41,6 +41,37 @@ public struct TestFlowScript: Sendable {
                         )
                     )
                 )
+            } catch let skip as TestFlowSkip {
+                let actionEndedAt = Date()
+                let after = await context.snapshot()
+                let skipDiagnostics = skip.testFlowDiagnostics
+
+                steps.append(
+                    .skipped(
+                        name: action.name,
+                        kind: action.kind,
+                        startedAt: actionStartedAt,
+                        endedAt: actionEndedAt,
+                        diagnostics: newDiagnostics(
+                            before: before,
+                            after: after
+                        ) + skipDiagnostics
+                    )
+                )
+
+                var diagnostics = after
+                diagnostics.append(
+                    contentsOf: skipDiagnostics
+                )
+
+                return .skipped(
+                    name: name,
+                    reason: skip.reason,
+                    startedAt: startedAt,
+                    endedAt: Date(),
+                    diagnostics: diagnostics,
+                    steps: steps
+                )
             } catch {
                 let actionEndedAt = Date()
                 let after = await context.snapshot()
