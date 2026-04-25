@@ -1,3 +1,5 @@
+import Foundation
+
 public struct TestFlowScript: Sendable {
     public let name: String
     public let actions: [TestFlowAction]
@@ -11,15 +13,55 @@ public struct TestFlowScript: Sendable {
     }
 
     public func run() async -> TestFlowResult {
+        let startedAt = Date()
         let context = TestFlowContext()
+        var steps: [TestFlowActionResult] = []
 
         for action in actions {
+            let actionStartedAt = Date()
+            let before = await context.snapshot()
+
             do {
                 try await action.run(
                     context: context
                 )
+
+                let actionEndedAt = Date()
+                let after = await context.snapshot()
+
+                steps.append(
+                    .pass(
+                        name: action.name,
+                        kind: action.kind,
+                        startedAt: actionStartedAt,
+                        endedAt: actionEndedAt,
+                        diagnostics: newDiagnostics(
+                            before: before,
+                            after: after
+                        )
+                    )
+                )
             } catch {
-                var diagnostics = await context.snapshot()
+                let actionEndedAt = Date()
+                let after = await context.snapshot()
+                let errorDiagnostics = TestFlowErrorDiagnostics.diagnostics(
+                    for: error
+                )
+
+                steps.append(
+                    .fail(
+                        name: action.name,
+                        kind: action.kind,
+                        startedAt: actionStartedAt,
+                        endedAt: actionEndedAt,
+                        diagnostics: newDiagnostics(
+                            before: before,
+                            after: after
+                        ) + errorDiagnostics
+                    )
+                )
+
+                var diagnostics = after
                 diagnostics.append(
                     .field(
                         "failed_action",
@@ -33,21 +75,42 @@ public struct TestFlowScript: Sendable {
                     )
                 )
                 diagnostics.append(
-                    contentsOf: TestFlowErrorDiagnostics.diagnostics(
-                        for: error
-                    )
+                    contentsOf: errorDiagnostics
                 )
 
                 return .failed(
                     name: name,
-                    diagnostics: diagnostics
+                    startedAt: startedAt,
+                    endedAt: Date(),
+                    diagnostics: diagnostics,
+                    steps: steps
                 )
             }
         }
 
         return .passed(
             name: name,
-            diagnostics: await context.snapshot()
+            startedAt: startedAt,
+            endedAt: Date(),
+            diagnostics: await context.snapshot(),
+            steps: steps
+        )
+    }
+}
+
+private extension TestFlowScript {
+    func newDiagnostics(
+        before: [TestFlowDiagnostic],
+        after: [TestFlowDiagnostic]
+    ) -> [TestFlowDiagnostic] {
+        guard after.count > before.count else {
+            return []
+        }
+
+        return Array(
+            after.dropFirst(
+                before.count
+            )
         )
     }
 }

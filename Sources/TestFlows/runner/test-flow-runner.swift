@@ -9,58 +9,63 @@ public extension TestFlowRunner {
         tags: [String] = [],
         configuration: TestFlowRunConfiguration = .default
     ) async -> [TestFlowResult] {
-        let requestedTags = Set(
-            tags
-        )
-        let allCases = Array(
-            registry.allCases
-        )
-        let resolvedNames = names.isEmpty || names == ["all"]
-            ? allCases.map(\.rawValue)
-            : names
+        await TestFlowSnapshot.withOptions(
+            configuration.snapshotOptions
+        ) {
+            let selection = TestFlowSelection(
+                names: names,
+                tags: tags,
+                skipTags: configuration.skipTags,
+                match: configuration.match
+            )
+            let allCases = Array(
+                registry.allCases
+            )
+            let resolvedNames = selection.resolvedNames(
+                available: allCases.map(\.rawValue)
+            )
 
-        var results: [TestFlowResult] = []
+            var results: [TestFlowResult] = []
 
-        for name in resolvedNames {
-            guard let testCase = allCases.first(where: { $0.rawValue == name }) else {
-                results.append(
-                    .failed(
-                        name: name,
-                        diagnostics: [
-                            .message("unknown flow test '\(name)'"),
-                            .message("available: \(allCases.map(\.rawValue).joined(separator: ", "))")
-                        ]
+            for name in resolvedNames {
+                guard let testCase = allCases.first(where: { $0.rawValue == name }) else {
+                    results.append(
+                        unknownFlow(
+                            name: name,
+                            available: allCases.map(\.rawValue)
+                        )
                     )
-                )
 
-                if configuration.failFast {
-                    break
+                    if configuration.failFast {
+                        break
+                    }
+
+                    continue
                 }
 
-                continue
+                guard selection.accepts(
+                    name: testCase.rawValue,
+                    displayName: testCase.displayName,
+                    tags: testCase.tags
+                ) else {
+                    continue
+                }
+
+                let result = await run(
+                    testCase
+                )
+
+                results.append(
+                    result
+                )
+
+                if configuration.failFast && result.isFailure {
+                    break
+                }
             }
 
-            guard matchesTags(
-                available: testCase.tags,
-                requested: requestedTags
-            ) else {
-                continue
-            }
-
-            let result = await run(
-                testCase
-            )
-
-            results.append(
-                result
-            )
-
-            if configuration.failFast && result.isFailure {
-                break
-            }
+            return results
         }
-
-        return results
     }
 
     static func run(
@@ -69,53 +74,58 @@ public extension TestFlowRunner {
         tags: [String] = [],
         configuration: TestFlowRunConfiguration = .default
     ) async -> [TestFlowResult] {
-        let requestedTags = Set(
-            tags
-        )
-        let resolvedNames = names.isEmpty || names == ["all"]
-            ? flows.map(\.id)
-            : names
-
-        var results: [TestFlowResult] = []
-
-        for name in resolvedNames {
-            guard let flow = flows.first(where: { $0.id == name }) else {
-                results.append(
-                    .failed(
-                        name: name,
-                        diagnostics: [
-                            .message("unknown flow test '\(name)'"),
-                            .message("available: \(flows.map(\.id).joined(separator: ", "))")
-                        ]
-                    )
-                )
-
-                if configuration.failFast {
-                    break
-                }
-
-                continue
-            }
-
-            guard matchesTags(
-                available: flow.tags,
-                requested: requestedTags
-            ) else {
-                continue
-            }
-
-            let result = await flow.run()
-
-            results.append(
-                result
+        await TestFlowSnapshot.withOptions(
+            configuration.snapshotOptions
+        ) {
+            let selection = TestFlowSelection(
+                names: names,
+                tags: tags,
+                skipTags: configuration.skipTags,
+                match: configuration.match
+            )
+            let resolvedNames = selection.resolvedNames(
+                available: flows.map(\.id)
             )
 
-            if configuration.failFast && result.isFailure {
-                break
-            }
-        }
+            var results: [TestFlowResult] = []
 
-        return results
+            for name in resolvedNames {
+                guard let flow = flows.first(where: { $0.id == name }) else {
+                    results.append(
+                        unknownFlow(
+                            name: name,
+                            available: flows.map(\.id)
+                        )
+                    )
+
+                    if configuration.failFast {
+                        break
+                    }
+
+                    continue
+                }
+
+                guard selection.accepts(
+                    name: flow.id,
+                    displayName: flow.displayName,
+                    tags: flow.tags
+                ) else {
+                    continue
+                }
+
+                let result = await flow.run()
+
+                results.append(
+                    result
+                )
+
+                if configuration.failFast && result.isFailure {
+                    break
+                }
+            }
+
+            return results
+        }
     }
 
     static func run<Registry: TestFlowRegistry>(
@@ -137,11 +147,26 @@ private extension TestFlowRunner {
     static func run<FlowCase: TestFlowCase>(
         _ testCase: FlowCase
     ) async -> TestFlowResult {
+        let startedAt = Date()
+
         do {
-            return try await testCase.run()
+            let result = try await testCase.run()
+            let endedAt = Date()
+
+            return result.withRun(
+                name: testCase.rawValue,
+                displayName: testCase.displayName,
+                tags: testCase.tags,
+                startedAt: startedAt,
+                endedAt: endedAt
+            )
         } catch {
             return .failed(
                 name: testCase.rawValue,
+                displayName: testCase.displayName,
+                startedAt: startedAt,
+                endedAt: Date(),
+                tags: testCase.tags,
                 diagnostics: TestFlowErrorDiagnostics.diagnostics(
                     for: error
                 )
@@ -149,10 +174,16 @@ private extension TestFlowRunner {
         }
     }
 
-    static func matchesTags(
-        available: Set<String>,
-        requested: Set<String>
-    ) -> Bool {
-        requested.isEmpty || !available.intersection(requested).isEmpty
+    static func unknownFlow(
+        name: String,
+        available: [String]
+    ) -> TestFlowResult {
+        .failed(
+            name: name,
+            diagnostics: [
+                .message("unknown flow test '\(name)'"),
+                .message("available: \(available.joined(separator: ", "))")
+            ]
+        )
     }
 }

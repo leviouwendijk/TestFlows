@@ -1,3 +1,5 @@
+import Foundation
+
 public struct TestFlow: Sendable, Identifiable {
     public let id: String
     public let title: String?
@@ -71,6 +73,16 @@ public struct TestFlow: Sendable, Identifiable {
     }
 
     public func run() async -> TestFlowResult {
-        await operation()
+        let startedAt = Date()
+        let result = await operation()
+        let endedAt = Date()
+
+        return result.withRun(
+            name: id,
+            displayName: displayName,
+            tags: tags,
+            startedAt: startedAt,
+            endedAt: endedAt
+        )
     }
 }

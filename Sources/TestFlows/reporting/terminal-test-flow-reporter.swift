@@ -1,3 +1,4 @@
+import Foundation
 import Terminal
 
 public struct TerminalTestFlowReporter: TestFlowReporting {
@@ -8,139 +9,332 @@ public struct TerminalTestFlowReporter: TestFlowReporting {
         results: [TestFlowResult],
         configuration: TestFlowReportConfiguration = .default
     ) {
+        print(
+            TerminalTestFlowRenderer.render(
+                title: title,
+                results: results,
+                configuration: configuration
+            )
+        )
+    }
+}
+
+public struct TerminalTestFlowRenderer: Sendable {
+    public init() {}
+
+    public static func render(
+        title: String,
+        results: [TestFlowResult],
+        configuration: TestFlowReportConfiguration = .default
+    ) -> String {
+        Self().render(
+            title: title,
+            results: results,
+            configuration: configuration
+        )
+    }
+
+    public func render(
+        title: String,
+        results: [TestFlowResult],
+        configuration: TestFlowReportConfiguration = .default
+    ) -> String {
+        let visibleResults = visibleResults(
+            results,
+            configuration: configuration
+        )
         let layout = TerminalTestFlowReportLayout(
             nameWidth: maxNameWidth(
-                results
+                visibleResults
             )
         )
 
-        print(styleTitle(title, configuration: configuration))
-        print(String(repeating: "=", count: max(20, title.count)))
-        print("")
+        var lines: [String] = []
 
-        for (index, result) in results.enumerated() {
-            if index > 0 {
-                print("")
-            }
-
-            printResult(
-                result,
-                layout: layout,
+        lines.append(
+            styleTitle(
+                title,
                 configuration: configuration
             )
+        )
+        lines.append(
+            String(
+                repeating: "=",
+                count: max(
+                    20,
+                    title.count
+                )
+            )
+        )
+
+        if !visibleResults.isEmpty {
+            lines.append("")
+
+            for (index, result) in visibleResults.enumerated() {
+                if index > 0 {
+                    lines.append("")
+                }
+
+                appendResult(
+                    result,
+                    to: &lines,
+                    layout: layout,
+                    configuration: configuration
+                )
+            }
         }
 
-        print("")
-        print(String(repeating: "=", count: max(20, title.count)))
-        printSummary(
-            results,
-            configuration: configuration
+        lines.append("")
+        lines.append(
+            String(
+                repeating: "=",
+                count: max(
+                    20,
+                    title.count
+                )
+            )
+        )
+        lines.append(
+            summaryLine(
+                results,
+                configuration: configuration
+            )
+        )
+
+        return lines.joined(
+            separator: "\n"
         )
     }
 }
 
 private struct TerminalTestFlowReportLayout {
     var nameWidth: Int
+
     var diagnosticIndent: Int {
         6
     }
+
     var fieldNameWidth: Int {
         9
     }
+
+    var stepNameWidth: Int {
+        32
+    }
+
+    var stepKindWidth: Int {
+        10
+    }
 }
 
-private extension TerminalTestFlowReporter {
-    func printResult(
+private extension TerminalTestFlowRenderer {
+    func appendResult(
         _ result: TestFlowResult,
+        to lines: inout [String],
         layout: TerminalTestFlowReportLayout,
         configuration: TestFlowReportConfiguration
     ) {
-        let status = result.isFailure
-            ? styleFail("fail", configuration: configuration)
-            : stylePass("pass", configuration: configuration)
-
+        let status = styleStatus(
+            result.status,
+            configuration: configuration
+        )
         let paddedName = padded(
             result.name,
             width: layout.nameWidth
         )
 
-        print("\(status)  \(paddedName)")
+        lines.append(
+            "\(status)  \(paddedName)  \(durationText(result.duration))"
+        )
+
+        if configuration.verbose,
+           result.displayName != result.name {
+            appendField(
+                name: "title",
+                value: result.displayName,
+                to: &lines,
+                layout: layout,
+                configuration: configuration
+            )
+        }
+
+        if configuration.verbose,
+           !result.tags.isEmpty {
+            appendField(
+                name: "tags",
+                value: result.tags.sorted().joined(separator: ","),
+                to: &lines,
+                layout: layout,
+                configuration: configuration
+            )
+        }
+
+        if configuration.verbose || result.isFailure {
+            appendSteps(
+                result.steps,
+                to: &lines,
+                layout: layout,
+                configuration: configuration
+            )
+        }
 
         guard !result.diagnostics.isEmpty else {
             return
         }
 
         for diagnostic in result.diagnostics {
-            printDiagnostic(
+            appendDiagnostic(
                 diagnostic,
+                to: &lines,
                 layout: layout,
                 configuration: configuration
             )
         }
     }
 
-    func printDiagnostic(
-        _ diagnostic: TestFlowDiagnostic,
+    func appendSteps(
+        _ steps: [TestFlowActionResult],
+        to lines: inout [String],
         layout: TerminalTestFlowReportLayout,
         configuration: TestFlowReportConfiguration
     ) {
+        guard !steps.isEmpty else {
+            return
+        }
+
+        lines.append(
+            "\(spaces(layout.diagnosticIndent))steps"
+        )
+
+        for step in steps {
+            let kind = padded(
+                step.kind.rawValue,
+                width: layout.stepKindWidth
+            )
+            let name = padded(
+                step.name,
+                width: layout.stepNameWidth
+            )
+            let status = styleStatus(
+                step.status,
+                configuration: configuration
+            )
+
+            lines.append(
+                "\(spaces(layout.diagnosticIndent + 4))\(kind) \(name) \(status) \(durationText(step.duration))"
+            )
+
+            if step.isFailure {
+                for diagnostic in step.diagnostics {
+                    appendStepDiagnostic(
+                        diagnostic,
+                        to: &lines,
+                        layout: layout,
+                        configuration: configuration
+                    )
+                }
+            }
+        }
+    }
+
+    func appendStepDiagnostic(
+        _ diagnostic: TestFlowDiagnostic,
+        to lines: inout [String],
+        layout: TerminalTestFlowReportLayout,
+        configuration: TestFlowReportConfiguration
+    ) {
+        let stepLayout = TerminalTestFlowReportLayout(
+            nameWidth: layout.nameWidth
+        )
+
+        appendDiagnostic(
+            diagnostic,
+            to: &lines,
+            layout: stepLayout,
+            configuration: configuration,
+            indentOffset: 8
+        )
+    }
+
+    func appendDiagnostic(
+        _ diagnostic: TestFlowDiagnostic,
+        to lines: inout [String],
+        layout: TerminalTestFlowReportLayout,
+        configuration: TestFlowReportConfiguration,
+        indentOffset: Int = 0
+    ) {
         switch diagnostic {
         case .field(let name, let value):
-            printField(
+            appendField(
                 name: name,
                 value: value,
+                to: &lines,
                 layout: layout,
-                configuration: configuration
+                configuration: configuration,
+                indentOffset: indentOffset
             )
 
         case .event(let value):
-            printField(
+            appendField(
                 name: "event",
                 value: value,
+                to: &lines,
                 layout: layout,
-                configuration: configuration
+                configuration: configuration,
+                indentOffset: indentOffset
             )
 
-        case .section(let title, let lines):
-            printSection(
+        case .section(let title, let sectionLines):
+            appendSection(
                 title: title,
-                lines: lines,
+                sectionLines: sectionLines,
+                to: &lines,
                 layout: layout,
-                configuration: configuration
+                configuration: configuration,
+                indentOffset: indentOffset
             )
 
         case .diff(let title, let value):
-            printSection(
+            appendSection(
                 title: title,
-                lines: value.split(
+                sectionLines: value.split(
                     separator: "\n",
                     omittingEmptySubsequences: false
                 ).map(String.init),
+                to: &lines,
                 layout: layout,
-                configuration: configuration
+                configuration: configuration,
+                indentOffset: indentOffset
             )
 
         case .message(let value):
-            printWrapped(
+            appendWrapped(
                 value,
-                indent: layout.diagnosticIndent,
-                continuationIndent: layout.diagnosticIndent,
+                to: &lines,
+                indent: layout.diagnosticIndent + indentOffset,
+                continuationIndent: layout.diagnosticIndent + indentOffset,
                 maxWidth: 100
             )
         }
     }
 
-    func printField(
+    func appendField(
         name: String,
         value: String,
+        to lines: inout [String],
         layout: TerminalTestFlowReportLayout,
-        configuration: TestFlowReportConfiguration
+        configuration: TestFlowReportConfiguration,
+        indentOffset: Int = 0
     ) {
+        _ = configuration
+
         if name == "events" {
-            printEventTrace(
+            appendEventTrace(
                 value,
+                to: &lines,
                 layout: layout,
-                configuration: configuration
+                configuration: configuration,
+                indentOffset: indentOffset
             )
 
             return
@@ -151,39 +345,49 @@ private extension TerminalTestFlowReporter {
             width: layout.fieldNameWidth
         )
 
-        printWrapped(
+        appendWrapped(
             "\(key) \(value)",
-            indent: layout.diagnosticIndent,
-            continuationIndent: layout.diagnosticIndent + layout.fieldNameWidth + 1,
+            to: &lines,
+            indent: layout.diagnosticIndent + indentOffset,
+            continuationIndent: layout.diagnosticIndent + layout.fieldNameWidth + 1 + indentOffset,
             maxWidth: 100
         )
     }
 
-    func printSection(
+    func appendSection(
         title: String,
-        lines: [String],
+        sectionLines: [String],
+        to lines: inout [String],
         layout: TerminalTestFlowReportLayout,
-        configuration: TestFlowReportConfiguration
+        configuration: TestFlowReportConfiguration,
+        indentOffset: Int = 0
     ) {
-        print(
-            "\(spaces(layout.diagnosticIndent))\(title)"
+        _ = configuration
+
+        lines.append(
+            "\(spaces(layout.diagnosticIndent + indentOffset))\(title)"
         )
 
-        for line in lines {
-            printWrapped(
+        for line in sectionLines {
+            appendWrapped(
                 line,
-                indent: layout.diagnosticIndent + 4,
-                continuationIndent: layout.diagnosticIndent + 4,
+                to: &lines,
+                indent: layout.diagnosticIndent + 4 + indentOffset,
+                continuationIndent: layout.diagnosticIndent + 4 + indentOffset,
                 maxWidth: 100
             )
         }
     }
 
-    func printEventTrace(
+    func appendEventTrace(
         _ value: String,
+        to lines: inout [String],
         layout: TerminalTestFlowReportLayout,
-        configuration: TestFlowReportConfiguration
+        configuration: TestFlowReportConfiguration,
+        indentOffset: Int = 0
     ) {
+        _ = configuration
+
         let events = value
             .split(separator: ",")
             .map {
@@ -196,25 +400,27 @@ private extension TerminalTestFlowReporter {
             }
 
         guard !events.isEmpty else {
-            printField(
+            appendField(
                 name: "events",
                 value: "<none>",
+                to: &lines,
                 layout: layout,
-                configuration: configuration
+                configuration: configuration,
+                indentOffset: indentOffset
             )
 
             return
         }
 
-        print(
-            "\(spaces(layout.diagnosticIndent))events"
+        lines.append(
+            "\(spaces(layout.diagnosticIndent + indentOffset))events"
         )
 
         for item in collapsedAdjacentEvents(
             events
         ) {
-            print(
-                "\(spaces(layout.diagnosticIndent + 4))\(item)"
+            lines.append(
+                "\(spaces(layout.diagnosticIndent + 4 + indentOffset))\(item)"
             )
         }
     }
@@ -256,8 +462,9 @@ private extension TerminalTestFlowReporter {
         return collapsed
     }
 
-    func printWrapped(
+    func appendWrapped(
         _ value: String,
+        to lines: inout [String],
         indent: Int,
         continuationIndent: Int,
         maxWidth: Int
@@ -276,30 +483,33 @@ private extension TerminalTestFlowReporter {
             20,
             maxWidth - continuationIndent
         )
-
-        let lines = value.split(
+        let rawLines = value.split(
             separator: "\n",
             omittingEmptySubsequences: false
         ).map(String.init)
 
         var isFirstLine = true
 
-        for line in lines {
+        for rawLine in rawLines {
             let wrapped = wrappedLines(
-                line,
+                rawLine,
                 width: isFirstLine ? availableWidth : continuationWidth
             )
 
             for wrappedLine in wrapped {
                 if isFirstLine {
-                    print("\(prefix)\(wrappedLine)")
+                    lines.append(
+                        "\(prefix)\(wrappedLine)"
+                    )
                     isFirstLine = false
                 } else {
-                    print("\(continuationPrefix)\(wrappedLine)")
+                    lines.append(
+                        "\(continuationPrefix)\(wrappedLine)"
+                    )
                 }
             }
 
-            if line.isEmpty {
+            if rawLine.isEmpty {
                 isFirstLine = false
             }
         }
@@ -344,28 +554,71 @@ private extension TerminalTestFlowReporter {
         return lines.isEmpty ? [value] : lines
     }
 
-    func printSummary(
+    func visibleResults(
         _ results: [TestFlowResult],
         configuration: TestFlowReportConfiguration
-    ) {
+    ) -> [TestFlowResult] {
+        var visible = configuration.failuresOnly
+            ? results.filter(\.isFailure)
+            : results
+
+        if configuration.quiet {
+            visible = visible.filter(\.isFailure)
+        }
+
+        return visible
+    }
+
+    func summaryLine(
+        _ results: [TestFlowResult],
+        configuration: TestFlowReportConfiguration
+    ) -> String {
         let failed = results.filter(\.isFailure).count
-        let passed = results.count - failed
+        let passed = results.filter {
+            $0.status == .passed
+        }.count
+        let skipped = results.filter {
+            $0.status == .skipped
+        }.count
 
         if failed == 0 {
-            print(
-                stylePass(
-                    "pass \(passed)/\(results.count) passed",
-                    configuration: configuration
+            var parts = [
+                "\(passed)/\(results.count) passed"
+            ]
+
+            if skipped > 0 {
+                parts.append(
+                    "\(skipped) skipped"
                 )
-            )
-        } else {
-            print(
-                styleFail(
-                    "fail \(failed)/\(results.count) failed, \(passed) passed",
-                    configuration: configuration
+            }
+
+            if configuration.failuresOnly {
+                parts.append(
+                    "0 failures"
                 )
+            }
+
+            return stylePass(
+                "pass \(parts.joined(separator: ", "))",
+                configuration: configuration
             )
         }
+
+        var parts = [
+            "\(failed)/\(results.count) failed",
+            "\(passed) passed",
+        ]
+
+        if skipped > 0 {
+            parts.append(
+                "\(skipped) skipped"
+            )
+        }
+
+        return styleFail(
+            "fail \(parts.joined(separator: ", "))",
+            configuration: configuration
+        )
     }
 
     func maxNameWidth(
@@ -398,8 +651,49 @@ private extension TerminalTestFlowReporter {
     ) -> String {
         String(
             repeating: " ",
-            count: max(0, count)
+            count: max(
+                0,
+                count
+            )
         )
+    }
+
+    func durationText(
+        _ duration: TimeInterval
+    ) -> String {
+        let milliseconds = Int(
+            (duration * 1000).rounded()
+        )
+
+        return "\(milliseconds)ms"
+    }
+
+    func styleStatus(
+        _ status: TestFlowStatus,
+        configuration: TestFlowReportConfiguration
+    ) -> String {
+        switch status {
+        case .passed:
+            return stylePass(
+                status.label,
+                configuration: configuration
+            )
+
+        case .failed,
+             .unexpected_pass,
+             .interrupted:
+            return styleFail(
+                status.label,
+                configuration: configuration
+            )
+
+        case .skipped,
+             .expected_failure:
+            return styleTitle(
+                status.label,
+                configuration: configuration
+            )
+        }
     }
 
     func styleTitle(

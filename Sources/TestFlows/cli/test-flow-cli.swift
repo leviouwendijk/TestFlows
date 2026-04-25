@@ -31,14 +31,18 @@ public extension TestFlowCLI {
             Foundation.exit(0)
         }
 
+        let selectedNames = arguments.selectedNames()
         let results = await TestFlowRunner.run(
             registry: registry,
-            names: arguments.names,
+            names: selectedNames,
             tags: arguments.tags,
-            configuration: .init(
-                failFast: arguments.failFast,
-                verbose: arguments.verbose
-            )
+            configuration: arguments.runConfiguration
+        )
+
+        writeLastRun(
+            title: title,
+            results: results,
+            arguments: arguments
         )
 
         report(
@@ -78,14 +82,18 @@ public extension TestFlowCLI {
             Foundation.exit(0)
         }
 
+        let selectedNames = arguments.selectedNames()
         let results = await TestFlowRunner.run(
             suite: suite,
-            names: arguments.names,
+            names: selectedNames,
             tags: arguments.tags,
-            configuration: .init(
-                failFast: arguments.failFast,
-                verbose: arguments.verbose
-            )
+            configuration: arguments.runConfiguration
+        )
+
+        writeLastRun(
+            title: suite.title,
+            results: results,
+            arguments: arguments
         )
 
         report(
@@ -101,6 +109,21 @@ public extension TestFlowCLI {
 }
 
 private extension TestFlowCLI {
+    static func writeLastRun(
+        title: String,
+        results: [TestFlowResult],
+        arguments: TestFlowArguments
+    ) {
+        guard !arguments.failedLast || !results.isEmpty else {
+            return
+        }
+
+        try? arguments.lastRunStore.write(
+            title: title,
+            results: results
+        )
+    }
+
     static func report(
         title: String,
         results: [TestFlowResult],
@@ -110,19 +133,13 @@ private extension TestFlowCLI {
             JSONTestFlowReporter().report(
                 title: title,
                 results: results,
-                configuration: .init(
-                    color: false,
-                    verbose: arguments.verbose
-                )
+                configuration: arguments.jsonReportConfiguration
             )
         } else {
             TerminalTestFlowReporter().report(
                 title: title,
                 results: results,
-                configuration: .init(
-                    color: !arguments.plain,
-                    verbose: arguments.verbose
-                )
+                configuration: arguments.reportConfiguration
             )
         }
     }
@@ -139,10 +156,19 @@ private extension TestFlowCLI {
         print("    flowtest <test-name> [test-name...]")
         print("    flowtest --list")
         print("    flowtest --tag <tag>")
+        print("    flowtest --skip-tag <tag>")
+        print("    flowtest --match <text>")
         print("    flowtest --plain")
         print("    flowtest --json")
         print("    flowtest --verbose")
+        print("    flowtest --quiet")
+        print("    flowtest --failures")
+        print("    flowtest --failed-last")
         print("    flowtest --fail-fast")
+        print("    flowtest --record-snapshots")
+        print("    flowtest --update-snapshots")
+        print("    flowtest --snapshot-dir <path>")
+        print("    flowtest --last-run-file <path>")
         print("")
         print("available:")
 
@@ -162,10 +188,19 @@ private extension TestFlowCLI {
         print("    flowtest <test-name> [test-name...]")
         print("    flowtest --list")
         print("    flowtest --tag <tag>")
+        print("    flowtest --skip-tag <tag>")
+        print("    flowtest --match <text>")
         print("    flowtest --plain")
         print("    flowtest --json")
         print("    flowtest --verbose")
+        print("    flowtest --quiet")
+        print("    flowtest --failures")
+        print("    flowtest --failed-last")
         print("    flowtest --fail-fast")
+        print("    flowtest --record-snapshots")
+        print("    flowtest --update-snapshots")
+        print("    flowtest --snapshot-dir <path>")
+        print("    flowtest --last-run-file <path>")
         print("")
         print("available:")
 
