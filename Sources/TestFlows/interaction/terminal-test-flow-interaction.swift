@@ -7,7 +7,7 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
 
     public init(
         stream: TerminalStream = .standardError,
-        theme: TerminalTheme = .standard
+        theme: TerminalTheme = .agentic
     ) {
         self.stream = stream
         self.theme = theme
