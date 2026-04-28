@@ -22,6 +22,10 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
             )
         }
 
+        let width = Terminal.size(
+            for: stream
+        ).columns
+
         let menu = TerminalInteractiveMenu<TestFlowChoice, String>(
             items: prompt.choices,
             configuration: .inline(
@@ -43,7 +47,8 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
                 ).render(
                     isCurrent: row.isCurrent,
                     isEnabled: row.isEnabled,
-                    theme: theme
+                    theme: theme,
+                    width: width
                 )
             },
             summary: { result in
