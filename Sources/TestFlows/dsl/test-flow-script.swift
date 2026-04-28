@@ -22,8 +22,32 @@ public struct TestFlowScript: Sendable {
         interaction: any TestFlowInteraction
     ) async -> TestFlowResult {
         let startedAt = Date()
+        let files = TestFlowFiles(
+            flowName: name,
+            options: TestFlowFileSystem.options
+        )
+
+        do {
+            try files.prepare()
+        } catch {
+            return .failed(
+                name: name,
+                startedAt: startedAt,
+                endedAt: Date(),
+                diagnostics: [
+                    .field(
+                        "failed_action",
+                        "files.prepare"
+                    )
+                ] + TestFlowErrorDiagnostics.diagnostics(
+                    for: error
+                )
+            )
+        }
+
         let context = TestFlowContext(
-            interaction: interaction
+            interaction: interaction,
+            files: files
         )
         var steps: [TestFlowActionResult] = []
 

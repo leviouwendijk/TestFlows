@@ -9,62 +9,66 @@ public extension TestFlowRunner {
         tags: [String] = [],
         configuration: TestFlowRunConfiguration = .default
     ) async -> [TestFlowResult] {
-        await TestFlowSnapshot.withOptions(
-            configuration.snapshotOptions
+        await TestFlowFileSystem.withOptions(
+            configuration.fileOptions
         ) {
-            let selection = TestFlowSelection(
-                names: names,
-                tags: tags,
-                skipTags: configuration.skipTags,
-                match: configuration.match
-            )
-            let allCases = Array(
-                registry.allCases
-            )
-            let resolvedNames = selection.resolvedNames(
-                available: allCases.map(\.rawValue)
-            )
+            await TestFlowSnapshot.withOptions(
+                configuration.snapshotOptions
+            ) {
+                let selection = TestFlowSelection(
+                    names: names,
+                    tags: tags,
+                    skipTags: configuration.skipTags,
+                    match: configuration.match
+                )
+                let allCases = Array(
+                    registry.allCases
+                )
+                let resolvedNames = selection.resolvedNames(
+                    available: allCases.map(\.rawValue)
+                )
 
-            var results: [TestFlowResult] = []
+                var results: [TestFlowResult] = []
 
-            for name in resolvedNames {
-                guard let testCase = allCases.first(where: { $0.rawValue == name }) else {
-                    results.append(
-                        unknownFlow(
-                            name: name,
-                            available: allCases.map(\.rawValue)
+                for name in resolvedNames {
+                    guard let testCase = allCases.first(where: { $0.rawValue == name }) else {
+                        results.append(
+                            unknownFlow(
+                                name: name,
+                                available: allCases.map(\.rawValue)
+                            )
                         )
-                    )
 
-                    if configuration.failFast {
-                        break
+                        if configuration.failFast {
+                            break
+                        }
+
+                        continue
                     }
 
-                    continue
+                    guard selection.accepts(
+                        name: testCase.rawValue,
+                        displayName: testCase.displayName,
+                        tags: testCase.tags
+                    ) else {
+                        continue
+                    }
+
+                    let result = await run(
+                        testCase
+                    )
+
+                    results.append(
+                        result
+                    )
+
+                    if configuration.failFast && result.isFailure {
+                        break
+                    }
                 }
 
-                guard selection.accepts(
-                    name: testCase.rawValue,
-                    displayName: testCase.displayName,
-                    tags: testCase.tags
-                ) else {
-                    continue
-                }
-
-                let result = await run(
-                    testCase
-                )
-
-                results.append(
-                    result
-                )
-
-                if configuration.failFast && result.isFailure {
-                    break
-                }
+                return results
             }
-
-            return results
         }
     }
 
@@ -74,57 +78,61 @@ public extension TestFlowRunner {
         tags: [String] = [],
         configuration: TestFlowRunConfiguration = .default
     ) async -> [TestFlowResult] {
-        await TestFlowSnapshot.withOptions(
-            configuration.snapshotOptions
+        await TestFlowFileSystem.withOptions(
+            configuration.fileOptions
         ) {
-            let selection = TestFlowSelection(
-                names: names,
-                tags: tags,
-                skipTags: configuration.skipTags,
-                match: configuration.match
-            )
-            let resolvedNames = selection.resolvedNames(
-                available: flows.map(\.id)
-            )
-
-            var results: [TestFlowResult] = []
-
-            for name in resolvedNames {
-                guard let flow = flows.first(where: { $0.id == name }) else {
-                    results.append(
-                        unknownFlow(
-                            name: name,
-                            available: flows.map(\.id)
-                        )
-                    )
-
-                    if configuration.failFast {
-                        break
-                    }
-
-                    continue
-                }
-
-                guard selection.accepts(
-                    name: flow.id,
-                    displayName: flow.displayName,
-                    tags: flow.tags
-                ) else {
-                    continue
-                }
-
-                let result = await flow.run()
-
-                results.append(
-                    result
+            await TestFlowSnapshot.withOptions(
+                configuration.snapshotOptions
+            ) {
+                let selection = TestFlowSelection(
+                    names: names,
+                    tags: tags,
+                    skipTags: configuration.skipTags,
+                    match: configuration.match
+                )
+                let resolvedNames = selection.resolvedNames(
+                    available: flows.map(\.id)
                 )
 
-                if configuration.failFast && result.isFailure {
-                    break
-                }
-            }
+                var results: [TestFlowResult] = []
 
-            return results
+                for name in resolvedNames {
+                    guard let flow = flows.first(where: { $0.id == name }) else {
+                        results.append(
+                            unknownFlow(
+                                name: name,
+                                available: flows.map(\.id)
+                            )
+                        )
+
+                        if configuration.failFast {
+                            break
+                        }
+
+                        continue
+                    }
+
+                    guard selection.accepts(
+                        name: flow.id,
+                        displayName: flow.displayName,
+                        tags: flow.tags
+                    ) else {
+                        continue
+                    }
+
+                    let result = await flow.run()
+
+                    results.append(
+                        result
+                    )
+
+                    if configuration.failFast && result.isFailure {
+                        break
+                    }
+                }
+
+                return results
+            }
         }
     }
 

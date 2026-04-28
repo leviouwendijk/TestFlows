@@ -1,11 +1,17 @@
 public actor TestFlowContext {
+    public nonisolated let files: TestFlowFiles
+
     private var diagnostics: [TestFlowDiagnostic] = []
     private let interaction: any TestFlowInteraction
 
     public init(
-        interaction: any TestFlowInteraction = NoTestFlowInteraction()
+        interaction: any TestFlowInteraction = NoTestFlowInteraction(),
+        files: TestFlowFiles = TestFlowFiles(
+            flowName: "flow"
+        )
     ) {
         self.interaction = interaction
+        self.files = files
     }
 
     public func choose(
