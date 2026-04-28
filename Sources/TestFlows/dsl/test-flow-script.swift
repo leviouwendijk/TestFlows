@@ -13,8 +13,18 @@ public struct TestFlowScript: Sendable {
     }
 
     public func run() async -> TestFlowResult {
+        await run(
+            interaction: NoTestFlowInteraction()
+        )
+    }
+
+    public func run(
+        interaction: any TestFlowInteraction
+    ) async -> TestFlowResult {
         let startedAt = Date()
-        let context = TestFlowContext()
+        let context = TestFlowContext(
+            interaction: interaction
+        )
         var steps: [TestFlowActionResult] = []
 
         for action in actions {

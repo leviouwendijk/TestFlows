@@ -1,7 +1,88 @@
 public actor TestFlowContext {
     private var diagnostics: [TestFlowDiagnostic] = []
+    private let interaction: any TestFlowInteraction
 
-    public init() {}
+    public init(
+        interaction: any TestFlowInteraction = NoTestFlowInteraction()
+    ) {
+        self.interaction = interaction
+    }
+
+    public func choose(
+        _ prompt: TestFlowChoicePrompt
+    ) async throws -> TestFlowChoice {
+        try await interaction.choose(
+            prompt
+        )
+    }
+
+    public func choose(
+        key: String,
+        title: String,
+        summary: String? = nil,
+        choices: [TestFlowChoice],
+        defaultID: String? = nil,
+        allowsCancel: Bool = false
+    ) async throws -> TestFlowChoice {
+        try await choose(
+            .init(
+                key: key,
+                title: title,
+                summary: summary,
+                choices: choices,
+                defaultID: defaultID,
+                allowsCancel: allowsCancel
+            )
+        )
+    }
+
+    public func confirm(
+        _ prompt: TestFlowConfirmPrompt
+    ) async throws -> Bool {
+        try await interaction.confirm(
+            prompt
+        )
+    }
+
+    public func confirm(
+        key: String,
+        title: String,
+        summary: String? = nil,
+        defaultValue: Bool? = nil
+    ) async throws -> Bool {
+        try await confirm(
+            .init(
+                key: key,
+                title: title,
+                summary: summary,
+                defaultValue: defaultValue
+            )
+        )
+    }
+
+    public func input(
+        _ prompt: TestFlowInputPrompt
+    ) async throws -> String {
+        try await interaction.input(
+            prompt
+        )
+    }
+
+    public func input(
+        key: String,
+        title: String,
+        summary: String? = nil,
+        defaultValue: String? = nil
+    ) async throws -> String {
+        try await input(
+            .init(
+                key: key,
+                title: title,
+                summary: summary,
+                defaultValue: defaultValue
+            )
+        )
+    }
 
     public func add(
         _ diagnostic: TestFlowDiagnostic
