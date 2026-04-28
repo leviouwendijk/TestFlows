@@ -16,7 +16,7 @@
       "location" : "https://github.com/leviouwendijk/Difference.git",
       "state" : {
         "branch" : "master",
-        "revision" : "395508c460782f6ec334c842eaef3856a628874b"
+        "revision" : "999beddfaa99a991807a4e07e8c0482512c94b69"
       }
     },
     {
@@ -25,7 +25,7 @@
       "location" : "https://github.com/leviouwendijk/Primitives.git",
       "state" : {
         "branch" : "master",
-        "revision" : "67969389bcee783f45c7fc1df75a63cacc7eaf17"
+        "revision" : "39ed955a95a804a0ad9cbd3df3e29d8df05170cd"
       }
     },
     {
@@ -34,7 +34,7 @@
       "location" : "https://github.com/leviouwendijk/Terminal.git",
       "state" : {
         "branch" : "master",
-        "revision" : "d4a3338604127da3c6e8c42ff62d8468cbfe9f4a"
+        "revision" : "305fdce077b899a76eacbdb0f193b0c7542c6322"
       }
     }
   ],

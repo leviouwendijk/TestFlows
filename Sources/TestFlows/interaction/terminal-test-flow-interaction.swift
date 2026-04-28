@@ -1,15 +1,11 @@
 import Foundation
-
-public enum TestFlowConsoleStream: Sendable, Codable, Hashable {
-    case standardOutput
-    case standardError
-}
+import Terminal
 
 public struct TerminalTestFlowInteraction: TestFlowInteraction {
-    public var stream: TestFlowConsoleStream
+    public var stream: TerminalStream
 
     public init(
-        stream: TestFlowConsoleStream = .standardError
+        stream: TerminalStream = .standardError
     ) {
         self.stream = stream
     }
@@ -23,54 +19,50 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
             )
         }
 
-        render(
-            prompt
-        )
+        let menu = TerminalInteractiveMenu<TestFlowChoice, String>(
+            items: prompt.choices,
+            configuration: .inline(
+                title: prompt.title,
+                instructions: prompt.summary ?? "Move with Ctrl-P/Ctrl-N or arrows. Enter picks. q/Esc cancels.",
+                outputStream: stream,
+                completionPresentation: .leaveSummary
+            ),
+            id: { choice in
+                choice.id
+            },
+            row: { row in
+                let cursor = row.isCurrent ? ">" : " "
+                var line = "\(cursor) \(row.item.id)"
 
-        while true {
-            let raw = promptLine(
-                "choice",
-                defaultValue: prompt.defaultID
-            )?
-            .trimmingCharacters(
-                in: CharacterSet.whitespacesAndNewlines
-            )
-
-            if raw == nil || raw == "" {
-                if let defaultID = prompt.defaultID,
-                   let choice = prompt.choices.first(where: { $0.id == defaultID }) {
-                    return choice
+                if row.item.title != row.item.id {
+                    line += " — \(row.item.title)"
                 }
 
-                continue
-            }
+                if let summary = row.item.summary,
+                   !summary.isEmpty {
+                    line += "\n  \(summary)"
+                }
 
-            guard let raw else {
-                throw TestFlowInteractionError.cancelled(
-                    prompt.key
-                )
-            }
+                return line + "\n"
+            },
+            summary: { result in
+                switch result {
+                case .picked(let item, _):
+                    return "selected: \(item.id)\n"
 
-            if prompt.allowsCancel,
-               ["q", "quit", "cancel"].contains(raw.lowercased()) {
-                throw TestFlowInteractionError.cancelled(
-                    prompt.key
-                )
+                case .cancelled:
+                    return "selected: none\n"
+                }
             }
+        )
 
-            if let number = Int(raw),
-               prompt.choices.indices.contains(number - 1) {
-                return prompt.choices[number - 1]
-            }
+        switch try menu.run() {
+        case .picked(let item, _):
+            return item
 
-            if let choice = prompt.choices.first(where: { choice in
-                choice.id.caseInsensitiveCompare(raw) == .orderedSame
-            }) {
-                return choice
-            }
-
-            write(
-                "unknown choice: \(raw)\n"
+        case .cancelled:
+            throw TestFlowInteractionError.cancelled(
+                prompt.key
             )
         }
     }
@@ -78,48 +70,29 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
     public func confirm(
         _ prompt: TestFlowConfirmPrompt
     ) async throws -> Bool {
-        let suffix: String
+        let defaultChoice: Terminal.ConfirmDefault
 
         switch prompt.defaultValue {
         case .some(true):
-            suffix = "[Y/n]"
+            defaultChoice = .yes
 
-        case .some(false):
-            suffix = "[y/N]"
-
-        case .none:
-            suffix = "[y/n]"
+        case .some(false),
+             .none:
+            defaultChoice = .no
         }
 
-        while true {
-            let raw = promptLine(
-                "\(prompt.title) \(suffix)"
-            )?
-            .trimmingCharacters(
-                in: CharacterSet.whitespacesAndNewlines
+        if let summary = prompt.summary,
+           !summary.isEmpty {
+            Terminal.write(
+                summary + "\n",
+                to: stream
             )
-
-            if raw == nil || raw == "" {
-                if let defaultValue = prompt.defaultValue {
-                    return defaultValue
-                }
-
-                continue
-            }
-
-            switch raw?.lowercased() {
-            case "y", "yes", "true", "1":
-                return true
-
-            case "n", "no", "false", "0":
-                return false
-
-            default:
-                write(
-                    "answer yes or no\n"
-                )
-            }
         }
+
+        return Terminal.confirm(
+            prompt.title,
+            default: defaultChoice
+        )
     }
 
     public func input(
@@ -127,18 +100,33 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
     ) async throws -> String {
         if let summary = prompt.summary,
            !summary.isEmpty {
-            write(
-                "\(summary)\n"
+            Terminal.write(
+                summary + "\n",
+                to: stream
             )
         }
 
-        let raw = promptLine(
-            prompt.title,
-            defaultValue: prompt.defaultValue
-        )?
-        .trimmingCharacters(
-            in: CharacterSet.whitespacesAndNewlines
+        if let defaultValue = prompt.defaultValue,
+           !defaultValue.isEmpty {
+            Terminal.write(
+                "\(prompt.title) [\(defaultValue)] ",
+                to: stream
+            )
+        } else {
+            Terminal.write(
+                "\(prompt.title) ",
+                to: stream
+            )
+        }
+
+        Terminal.flush(
+            stream
         )
+
+        let raw = readLine()?
+            .trimmingCharacters(
+                in: CharacterSet.whitespacesAndNewlines
+            )
 
         if let raw,
            !raw.isEmpty {
@@ -152,115 +140,5 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
         throw TestFlowInteractionError.missing_input(
             prompt.key
         )
-    }
-}
-
-private extension TerminalTestFlowInteraction {
-    func render(
-        _ prompt: TestFlowChoicePrompt
-    ) {
-        write(
-            "\(prompt.title)\n"
-        )
-
-        if let summary = prompt.summary,
-           !summary.isEmpty {
-            write(
-                "\(summary)\n"
-            )
-        }
-
-        write(
-            "\n"
-        )
-
-        for (index, choice) in prompt.choices.enumerated() {
-            var line = "  [\(index + 1)] \(choice.id)"
-
-            if choice.title != choice.id {
-                line += " — \(choice.title)"
-            }
-
-            if let summary = choice.summary,
-               !summary.isEmpty {
-                line += "\n      \(summary)"
-            }
-
-            write(
-                line + "\n"
-            )
-        }
-
-        if prompt.allowsCancel {
-            write(
-                "\n  [q] cancel\n"
-            )
-        }
-
-        write(
-            "\n"
-        )
-    }
-
-    func promptLine(
-        _ prompt: String,
-        defaultValue: String? = nil
-    ) -> String? {
-        if let defaultValue,
-           !defaultValue.isEmpty {
-            write(
-                "\(prompt) [\(defaultValue)] "
-            )
-        } else {
-            write(
-                "\(prompt) "
-            )
-        }
-
-        flush()
-
-        let raw = readLine()?
-            .trimmingCharacters(
-                in: CharacterSet.whitespacesAndNewlines
-            )
-
-        guard let raw,
-              !raw.isEmpty else {
-            return defaultValue
-        }
-
-        return raw
-    }
-
-    func write(
-        _ value: String
-    ) {
-        switch stream {
-        case .standardOutput:
-            fputs(
-                value,
-                stdout
-            )
-
-        case .standardError:
-            fputs(
-                value,
-                stderr
-            )
-        }
-    }
-
-    func flush() {
-        switch stream {
-        case .standardOutput:
-            fflush(
-                stdout
-            )
-
-        case .standardError:
-            fflush(
-                stderr
-            )
-        }
     }
 }
