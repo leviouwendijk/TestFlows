@@ -3,11 +3,14 @@ import Terminal
 
 public struct TerminalTestFlowInteraction: TestFlowInteraction {
     public var stream: TerminalStream
+    public var theme: TerminalTheme
 
     public init(
-        stream: TerminalStream = .standardError
+        stream: TerminalStream = .standardError,
+        theme: TerminalTheme = .standard
     ) {
         self.stream = stream
+        self.theme = theme
     }
 
     public func choose(
@@ -25,33 +28,31 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
                 title: prompt.title,
                 instructions: prompt.summary ?? "Move with Ctrl-P/Ctrl-N or arrows. Enter picks. q/Esc cancels.",
                 outputStream: stream,
-                completionPresentation: .leaveSummary
+                completionPresentation: .leaveSummary,
+                currentRowStyle: .none
             ),
             id: { choice in
                 choice.id
             },
             row: { row in
-                let cursor = row.isCurrent ? ">" : " "
-                var line = "\(cursor) \(row.item.id)"
-
-                if row.item.title != row.item.id {
-                    line += " — \(row.item.title)"
-                }
-
-                if let summary = row.item.summary,
-                   !summary.isEmpty {
-                    line += "\n  \(summary)"
-                }
-
-                return line + "\n"
+                TerminalMenuRowContent(
+                    title: title(
+                        for: row.item
+                    ),
+                    caption: row.item.summary
+                ).render(
+                    isCurrent: row.isCurrent,
+                    isEnabled: row.isEnabled,
+                    theme: theme
+                )
             },
             summary: { result in
                 switch result {
                 case .picked(let item, _):
-                    return "selected: \(item.id)\n"
+                    return "\(theme.label.apply("selected")) \(theme.value.apply(item.id))\n"
 
                 case .cancelled:
-                    return "selected: none\n"
+                    return "\(theme.label.apply("selected")) \(theme.warning.apply("none"))\n"
                 }
             }
         )
@@ -84,7 +85,7 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
         if let summary = prompt.summary,
            !summary.isEmpty {
             Terminal.write(
-                summary + "\n",
+                theme.caption.apply(summary) + "\n",
                 to: stream
             )
         }
@@ -101,7 +102,7 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
         if let summary = prompt.summary,
            !summary.isEmpty {
             Terminal.write(
-                summary + "\n",
+                theme.caption.apply(summary) + "\n",
                 to: stream
             )
         }
@@ -141,4 +142,14 @@ public struct TerminalTestFlowInteraction: TestFlowInteraction {
             prompt.key
         )
     }
+}
+
+private func title(
+    for choice: TestFlowChoice
+) -> String {
+    guard choice.title != choice.id else {
+        return choice.title
+    }
+
+    return "\(choice.id) — \(choice.title)"
 }
