@@ -55,6 +55,9 @@ private struct EncodedTestFlowReport: Encodable {
     var skipped: Int
     var expected_failures: Int
     var unexpected_passes: Int
+    var secured: Int
+    var vulnerable: Int
+    var exploited: Int
     var results: [EncodedTestFlowResult]
 
     init(
@@ -79,6 +82,15 @@ private struct EncodedTestFlowReport: Encodable {
         }.count
         self.unexpected_passes = results.filter {
             $0.status == TestFlowStatus.unexpected_pass.rawValue
+        }.count
+        self.secured = results.filter {
+            $0.status == TestFlowStatus.secured.rawValue
+        }.count
+        self.vulnerable = results.filter {
+            $0.status == TestFlowStatus.vulnerable.rawValue
+        }.count
+        self.exploited = results.filter {
+            $0.status == TestFlowStatus.exploited.rawValue
         }.count
         self.results = results
     }
@@ -164,6 +176,7 @@ private struct EncodedTestFlowDiagnostic: Encodable {
         case exit_code
         case stdout
         case stderr
+        case security
     }
 
     func encode(
@@ -311,6 +324,18 @@ private struct EncodedTestFlowDiagnostic: Encodable {
                 command.stderr,
                 forKey: .stderr
             )
+
+        case .security(let finding):
+            try container.encode(
+                "security",
+                forKey: .type
+            )
+            try container.encode(
+                EncodedTestFlowSecurityFinding(
+                    finding: finding
+                ),
+                forKey: .security
+            )
         }
     }
 }
@@ -326,5 +351,29 @@ private struct EncodedTestFlowTimelineEntry: Encodable {
         self.time = entry.time
         self.name = entry.name
         self.detail = entry.detail
+    }
+}
+
+private struct EncodedTestFlowSecurityFinding: Encodable {
+    var kind: String
+    var severity: String
+    var title: String
+    var vector: String?
+    var impact: String?
+    var evidence: String?
+    var reproduced: Bool
+    var result: String
+
+    init(
+        finding: TestFlowSecurityFinding
+    ) {
+        self.kind = finding.kind.rawValue
+        self.severity = finding.severity.rawValue
+        self.title = finding.title
+        self.vector = finding.vector
+        self.impact = finding.impact
+        self.evidence = finding.evidence
+        self.reproduced = finding.reproduced
+        self.result = finding.resultLabel
     }
 }

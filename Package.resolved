@@ -25,7 +25,7 @@
       "location" : "https://github.com/leviouwendijk/Primitives.git",
       "state" : {
         "branch" : "master",
-        "revision" : "39ed955a95a804a0ad9cbd3df3e29d8df05170cd"
+        "revision" : "1682a0cf9c3e921cf08b0fb22beea88013763a32"
       }
     },
     {
@@ -43,7 +43,7 @@
       "location" : "https://github.com/leviouwendijk/Terminal.git",
       "state" : {
         "branch" : "master",
-        "revision" : "3132ad4ece9dc7607d9abee0a180586eeea412cf"
+        "revision" : "0a55bdc55ce07514cf9dc772edef4fa27cbdb2d6"
       }
     }
   ],

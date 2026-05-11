@@ -62,11 +62,30 @@ public struct TestFlowScript: Sendable {
 
                 let actionEndedAt = Date()
                 let after = await context.snapshot()
+                let status = action.kind.secureSuccessStatus
 
                 steps.append(
-                    .pass(
+                    .init(
                         name: action.name,
                         kind: action.kind,
+                        status: status,
+                        startedAt: actionStartedAt,
+                        endedAt: actionEndedAt,
+                        diagnostics: newDiagnostics(
+                            before: before,
+                            after: after
+                        )
+                    )
+                )
+            } catch let signal as TestFlowSecuritySignal {
+                let actionEndedAt = Date()
+                let after = await context.snapshot()
+
+                steps.append(
+                    .init(
+                        name: action.name,
+                        kind: action.kind,
+                        status: signal.status,
                         startedAt: actionStartedAt,
                         endedAt: actionEndedAt,
                         diagnostics: newDiagnostics(
@@ -153,8 +172,11 @@ public struct TestFlowScript: Sendable {
             }
         }
 
-        return .passed(
+        return .init(
             name: name,
+            status: aggregateStatus(
+                steps
+            ),
             startedAt: startedAt,
             endedAt: Date(),
             diagnostics: await context.snapshot(),
@@ -177,5 +199,35 @@ private extension TestFlowScript {
                 before.count
             )
         )
+    }
+
+    func aggregateStatus(
+        _ steps: [TestFlowActionResult]
+    ) -> TestFlowStatus {
+        if steps.contains(where: { $0.status == .exploited }) {
+            return .exploited
+        }
+
+        if steps.contains(where: { $0.status == .vulnerable }) {
+            return .vulnerable
+        }
+
+        if steps.contains(where: { $0.status == .failed }) {
+            return .failed
+        }
+
+        if steps.contains(where: { $0.status == .unexpected_pass }) {
+            return .unexpected_pass
+        }
+
+        if steps.contains(where: { $0.status == .interrupted }) {
+            return .interrupted
+        }
+
+        if steps.contains(where: { $0.status == .secured }) {
+            return .secured
+        }
+
+        return .passed
     }
 }

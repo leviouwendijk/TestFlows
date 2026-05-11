@@ -256,6 +256,71 @@ private extension TerminalTestFlowRenderer {
         )
     }
 
+    func appendSecurityFinding(
+        _ finding: TestFlowSecurityFinding,
+        to lines: inout [String],
+        layout: TerminalTestFlowReportLayout,
+        configuration: TestFlowReportConfiguration,
+        indentOffset: Int = 0
+    ) {
+        let title = "\(finding.kind.rawValue) \(finding.severity.rawValue)"
+
+        lines.append(
+            "\(spaces(layout.diagnosticIndent + indentOffset))\(styleSecurityFindingTitle(title, reproduced: finding.reproduced, configuration: configuration))"
+        )
+
+        appendField(
+            name: "result",
+            value: finding.resultLabel,
+            to: &lines,
+            layout: layout,
+            configuration: configuration,
+            indentOffset: indentOffset + 4
+        )
+
+        appendField(
+            name: "title",
+            value: finding.title,
+            to: &lines,
+            layout: layout,
+            configuration: configuration,
+            indentOffset: indentOffset + 4
+        )
+
+        if let vector = finding.vector {
+            appendField(
+                name: "vector",
+                value: vector,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset + 4
+            )
+        }
+
+        if let impact = finding.impact {
+            appendField(
+                name: "impact",
+                value: impact,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset + 4
+            )
+        }
+
+        if let evidence = finding.evidence {
+            appendField(
+                name: "evidence",
+                value: evidence,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset + 4
+            )
+        }
+    }
+
     func appendDiagnostic(
         _ diagnostic: TestFlowDiagnostic,
         to lines: inout [String],
@@ -339,6 +404,15 @@ private extension TerminalTestFlowRenderer {
         case .command(let command):
             appendCommand(
                 command,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset
+            )
+
+        case .security(let finding):
+            appendSecurityFinding(
+                finding,
                 to: &lines,
                 layout: layout,
                 configuration: configuration,
@@ -861,6 +935,37 @@ private extension TerminalTestFlowRenderer {
         let unexpectedPasses = results.filter {
             $0.status == .unexpected_pass
         }.count
+        let secured = results.filter {
+            $0.status == .secured
+        }.count
+        let vulnerable = results.filter {
+            $0.status == .vulnerable
+        }.count
+        let exploited = results.filter {
+            $0.status == .exploited
+        }.count
+        let securityTotal = secured + vulnerable + exploited
+
+        if securityTotal > 0 {
+            let parts = [
+                "\(secured) secure",
+                "\(vulnerable) vulnerable",
+                "\(exploited) exploited",
+                "\(results.count) total"
+            ]
+
+            if vulnerable == 0 && exploited == 0 {
+                return stylePass(
+                    "security pass  \(parts.joined(separator: ", "))",
+                    configuration: configuration
+                )
+            }
+
+            return styleFail(
+                "security fail  \(parts.joined(separator: ", "))",
+                configuration: configuration
+            )
+        }
 
         if failed == 0 {
             var parts = [
@@ -972,7 +1077,8 @@ private extension TerminalTestFlowRenderer {
         configuration: TestFlowReportConfiguration
     ) -> String {
         switch status {
-        case .passed:
+        case .passed,
+             .secured:
             return stylePass(
                 status.label,
                 configuration: configuration
@@ -980,7 +1086,9 @@ private extension TerminalTestFlowRenderer {
 
         case .failed,
              .unexpected_pass,
-             .interrupted:
+             .interrupted,
+             .vulnerable,
+             .exploited:
             return styleFail(
                 status.label,
                 configuration: configuration
@@ -1033,6 +1141,24 @@ private extension TerminalTestFlowRenderer {
         return value.ansi(
             .bold,
             .red
+        )
+    }
+
+    func styleSecurityFindingTitle(
+        _ value: String,
+        reproduced: Bool,
+        configuration: TestFlowReportConfiguration
+    ) -> String {
+        if reproduced {
+            return styleFail(
+                value,
+                configuration: configuration
+            )
+        }
+
+        return stylePass(
+            value,
+            configuration: configuration
         )
     }
 }

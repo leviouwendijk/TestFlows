@@ -5,17 +5,23 @@ public enum TestFlowStatus: String, Sendable, Codable, Hashable, CaseIterable {
     case expected_failure
     case unexpected_pass
     case interrupted
+    case secured
+    case vulnerable
+    case exploited
 
     public var isFailure: Bool {
         switch self {
         case .passed,
              .skipped,
-             .expected_failure:
+             .expected_failure,
+             .secured:
             return false
 
         case .failed,
              .unexpected_pass,
-             .interrupted:
+             .interrupted,
+             .vulnerable,
+             .exploited:
             return true
         }
     }
@@ -39,6 +45,15 @@ public enum TestFlowStatus: String, Sendable, Codable, Hashable, CaseIterable {
 
         case .interrupted:
             return "intr"
+
+        case .secured:
+            return "secure"
+
+        case .vulnerable:
+            return "vuln"
+
+        case .exploited:
+            return "exploit"
         }
     }
 }

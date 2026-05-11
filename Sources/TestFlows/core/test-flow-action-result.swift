@@ -51,6 +51,57 @@ public extension TestFlowActionResult {
         )
     }
 
+    static func secure(
+        name: String,
+        kind: TestFlowActionKind,
+        startedAt: Date = Date(),
+        endedAt: Date = Date(),
+        diagnostics: [TestFlowDiagnostic] = []
+    ) -> Self {
+        .init(
+            name: name,
+            kind: kind,
+            status: .secured,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            diagnostics: diagnostics
+        )
+    }
+
+    static func vulnerable(
+        name: String,
+        kind: TestFlowActionKind,
+        startedAt: Date = Date(),
+        endedAt: Date = Date(),
+        diagnostics: [TestFlowDiagnostic] = []
+    ) -> Self {
+        .init(
+            name: name,
+            kind: kind,
+            status: .vulnerable,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            diagnostics: diagnostics
+        )
+    }
+
+    static func exploited(
+        name: String,
+        kind: TestFlowActionKind,
+        startedAt: Date = Date(),
+        endedAt: Date = Date(),
+        diagnostics: [TestFlowDiagnostic] = []
+    ) -> Self {
+        .init(
+            name: name,
+            kind: kind,
+            status: .exploited,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            diagnostics: diagnostics
+        )
+    }
+
     static func fail(
         name: String,
         kind: TestFlowActionKind,

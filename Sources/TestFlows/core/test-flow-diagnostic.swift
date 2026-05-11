@@ -8,6 +8,7 @@ public enum TestFlowDiagnostic: Sendable, Hashable, ExpressibleByStringInterpola
     case timeline(String, [TestFlowTimelineEntry])
     case metric(TestFlowMetric)
     case command(TestFlowCommandDiagnostic)
+    case security(TestFlowSecurityFinding)
 
     public init(
         stringLiteral value: String
@@ -77,6 +78,9 @@ public enum TestFlowDiagnostic: Sendable, Hashable, ExpressibleByStringInterpola
 
         case .command(let command):
             return command.description
+
+        case .security(let finding):
+            return finding.description
         }
     }
 }
@@ -264,6 +268,38 @@ public extension TestFlowDiagnostic {
         .field(
             name,
             String(describing: value)
+        )
+    }
+}
+
+public extension TestFlowSecurityFinding {
+    var description: String {
+        var lines: [String] = [
+            "\(kind.rawValue) \(severity.rawValue)",
+            "    result=\(resultLabel)",
+            "    title=\(title)"
+        ]
+
+        if let vector {
+            lines.append(
+                "    vector=\(vector)"
+            )
+        }
+
+        if let impact {
+            lines.append(
+                "    impact=\(impact)"
+            )
+        }
+
+        if let evidence {
+            lines.append(
+                "    evidence=\(evidence)"
+            )
+        }
+
+        return lines.joined(
+            separator: "\n"
         )
     }
 }
