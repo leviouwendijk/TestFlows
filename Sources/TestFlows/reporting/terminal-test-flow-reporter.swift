@@ -178,16 +178,40 @@ private extension TerminalTestFlowRenderer {
             )
         }
 
-        guard !result.diagnostics.isEmpty else {
+        let diagnostics = visibleResultDiagnostics(
+            for: result,
+            configuration: configuration
+        )
+
+        guard !diagnostics.isEmpty else {
             return
         }
 
-        for diagnostic in result.diagnostics {
+        for diagnostic in diagnostics {
             appendDiagnostic(
                 diagnostic,
                 to: &lines,
                 layout: layout,
                 configuration: configuration
+            )
+        }
+    }
+
+    func visibleResultDiagnostics(
+        for result: TestFlowResult,
+        configuration: TestFlowReportConfiguration
+    ) -> [TestFlowDiagnostic] {
+        guard configuration.verbose || result.isFailure else {
+            return result.diagnostics
+        }
+
+        let renderedStepDiagnostics = Set(
+            result.steps.flatMap(\.diagnostics)
+        )
+
+        return result.diagnostics.filter { diagnostic in
+            !renderedStepDiagnostics.contains(
+                diagnostic
             )
         }
     }
@@ -956,6 +980,9 @@ private extension TerminalTestFlowRenderer {
         let passed = results.filter {
             $0.status == .passed
         }.count
+        let regularFailed = results.filter {
+            $0.status == .failed
+        }.count
         let skipped = results.filter {
             $0.status == .skipped
         }.count
@@ -964,6 +991,9 @@ private extension TerminalTestFlowRenderer {
         }.count
         let unexpectedPasses = results.filter {
             $0.status == .unexpected_pass
+        }.count
+        let interrupted = results.filter {
+            $0.status == .interrupted
         }.count
         let secured = results.filter {
             $0.status == .secured
@@ -976,31 +1006,22 @@ private extension TerminalTestFlowRenderer {
         }.count
         let securityTotal = secured + vulnerable + exploited
 
-        if securityTotal > 0 {
-            let parts = [
-                "\(secured) secure",
-                "\(vulnerable) vulnerable",
-                "\(exploited) exploited",
-                "\(results.count) total"
+        if failed == 0 {
+            var parts = [
+                "\(results.count - failed)/\(results.count) ok"
             ]
 
-            if vulnerable == 0 && exploited == 0 {
-                return stylePass(
-                    "security pass  \(parts.joined(separator: ", "))",
-                    configuration: configuration
+            if passed > 0 {
+                parts.append(
+                    "\(passed) passed"
                 )
             }
 
-            return styleFail(
-                "security fail  \(parts.joined(separator: ", "))",
-                configuration: configuration
-            )
-        }
-
-        if failed == 0 {
-            var parts = [
-                "\(passed)/\(results.count) passed"
-            ]
+            if secured > 0 {
+                parts.append(
+                    "\(secured) secure"
+                )
+            }
 
             if skipped > 0 {
                 parts.append(
@@ -1011,6 +1032,12 @@ private extension TerminalTestFlowRenderer {
             if expectedFailures > 0 {
                 parts.append(
                     "\(expectedFailures) expected failure"
+                )
+            }
+
+            if securityTotal > 0 {
+                parts.append(
+                    "security \(secured) secure, \(vulnerable) vulnerable, \(exploited) exploited"
                 )
             }
 
@@ -1027,9 +1054,20 @@ private extension TerminalTestFlowRenderer {
         }
 
         var parts = [
-            "\(failed)/\(results.count) failed",
-            "\(passed) passed",
+            "\(failed)/\(results.count) failed"
         ]
+
+        if passed > 0 {
+            parts.append(
+                "\(passed) passed"
+            )
+        }
+
+        if regularFailed > 0 {
+            parts.append(
+                "\(regularFailed) regular failed"
+            )
+        }
 
         if skipped > 0 {
             parts.append(
@@ -1046,6 +1084,18 @@ private extension TerminalTestFlowRenderer {
         if unexpectedPasses > 0 {
             parts.append(
                 "\(unexpectedPasses) unexpected pass"
+            )
+        }
+
+        if interrupted > 0 {
+            parts.append(
+                "\(interrupted) interrupted"
+            )
+        }
+
+        if securityTotal > 0 {
+            parts.append(
+                "security \(secured) secure, \(vulnerable) vulnerable, \(exploited) exploited"
             )
         }
 
