@@ -269,6 +269,17 @@ private extension TerminalTestFlowRenderer {
             "\(spaces(layout.diagnosticIndent + indentOffset))\(styleSecurityFindingTitle(title, reproduced: finding.reproduced, configuration: configuration))"
         )
 
+        if let id = finding.id {
+            appendField(
+                name: "id",
+                value: id.rawValue,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset + 4
+            )
+        }
+
         appendField(
             name: "result",
             value: finding.resultLabel,
@@ -317,6 +328,25 @@ private extension TerminalTestFlowRenderer {
                 layout: layout,
                 configuration: configuration,
                 indentOffset: indentOffset + 4
+            )
+        }
+
+        guard !finding.references.isEmpty else {
+            return
+        }
+
+        lines.append(
+            "\(spaces(layout.diagnosticIndent + 4 + indentOffset))references"
+        )
+
+        for reference in finding.references {
+            appendField(
+                name: reference.kind.rawValue,
+                value: reference.value,
+                to: &lines,
+                layout: layout,
+                configuration: configuration,
+                indentOffset: indentOffset + 8
             )
         }
     }

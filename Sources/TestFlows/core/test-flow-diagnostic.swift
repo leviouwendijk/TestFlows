@@ -275,10 +275,21 @@ public extension TestFlowDiagnostic {
 public extension TestFlowSecurityFinding {
     var description: String {
         var lines: [String] = [
-            "\(kind.rawValue) \(severity.rawValue)",
-            "    result=\(resultLabel)",
-            "    title=\(title)"
+            "\(kind.rawValue) \(severity.rawValue)"
         ]
+
+        if let id {
+            lines.append(
+                "    id=\(id.rawValue)"
+            )
+        }
+
+        lines.append(
+            "    result=\(resultLabel)"
+        )
+        lines.append(
+            "    title=\(title)"
+        )
 
         if let vector {
             lines.append(
@@ -295,6 +306,18 @@ public extension TestFlowSecurityFinding {
         if let evidence {
             lines.append(
                 "    evidence=\(evidence)"
+            )
+        }
+
+        if !references.isEmpty {
+            lines.append(
+                "    references:"
+            )
+
+            lines.append(
+                contentsOf: references.map {
+                    "        \($0.kind.rawValue)=\($0.value)"
+                }
             )
         }
 

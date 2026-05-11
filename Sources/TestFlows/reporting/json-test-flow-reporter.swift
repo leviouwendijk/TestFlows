@@ -355,25 +355,45 @@ private struct EncodedTestFlowTimelineEntry: Encodable {
 }
 
 private struct EncodedTestFlowSecurityFinding: Encodable {
+    var id: String?
     var kind: String
     var severity: String
     var title: String
     var vector: String?
     var impact: String?
     var evidence: String?
+    var references: [EncodedTestFlowSecurityReference]
     var reproduced: Bool
     var result: String
 
     init(
         finding: TestFlowSecurityFinding
     ) {
+        self.id = finding.id?.rawValue
         self.kind = finding.kind.rawValue
         self.severity = finding.severity.rawValue
         self.title = finding.title
         self.vector = finding.vector
         self.impact = finding.impact
         self.evidence = finding.evidence
+        self.references = finding.references.map {
+            EncodedTestFlowSecurityReference(
+                reference: $0
+            )
+        }
         self.reproduced = finding.reproduced
         self.result = finding.resultLabel
+    }
+}
+
+private struct EncodedTestFlowSecurityReference: Encodable {
+    var kind: String
+    var value: String
+
+    init(
+        reference: TestFlowSecurityReference
+    ) {
+        self.kind = reference.kind.rawValue
+        self.value = reference.value
     }
 }
