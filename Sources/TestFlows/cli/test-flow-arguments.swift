@@ -5,6 +5,7 @@ public struct TestFlowArguments: Sendable, Hashable {
     public var tags: [String]
     public var skipTags: [String]
     public var match: [String]
+    public var profile: String?
     public var showHelp: Bool
     public var listOnly: Bool
     public var plain: Bool
@@ -23,6 +24,7 @@ public struct TestFlowArguments: Sendable, Hashable {
         tags: [String] = [],
         skipTags: [String] = [],
         match: [String] = [],
+        profile: String? = nil,
         showHelp: Bool = false,
         listOnly: Bool = false,
         plain: Bool = false,
@@ -40,6 +42,7 @@ public struct TestFlowArguments: Sendable, Hashable {
         self.tags = tags
         self.skipTags = skipTags
         self.match = match
+        self.profile = profile
         self.showHelp = showHelp
         self.listOnly = listOnly
         self.plain = plain
@@ -160,6 +163,21 @@ public struct TestFlowArguments: Sendable, Hashable {
                     index = valueIndex
                 }
 
+            case "--profile":
+                let valueIndex = rawArguments.index(
+                    after: index
+                )
+
+                if valueIndex < rawArguments.endIndex {
+                    arguments.profile = rawArguments[valueIndex]
+
+                    index = rawArguments.index(
+                        after: valueIndex
+                    )
+                } else {
+                    index = valueIndex
+                }
+
             case "--tag", "-t":
                 let valueIndex = rawArguments.index(
                     after: index
@@ -259,6 +277,24 @@ public extension TestFlowArguments {
             verbose: verbose,
             match: match,
             skipTags: skipTags,
+            snapshotOptions: snapshotOptions
+        )
+    }
+
+    func runConfiguration(
+        profile: TestFlowProfile?
+    ) -> TestFlowRunConfiguration {
+        let resolvedSkipTags = Set(skipTags)
+            .union(
+                profile?.skipTags ?? []
+            )
+            .sorted()
+
+        return .init(
+            failFast: failFast,
+            verbose: verbose,
+            match: match,
+            skipTags: resolvedSkipTags,
             snapshotOptions: snapshotOptions
         )
     }

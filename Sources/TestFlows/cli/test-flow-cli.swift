@@ -83,11 +83,15 @@ public extension TestFlowCLI {
         }
 
         let selectedNames = arguments.selectedNames()
+        let profile = resolvedProfile(
+            suite: suite,
+            arguments: arguments
+        )
         let results = await TestFlowRunner.run(
             suite: suite,
             names: selectedNames,
             tags: arguments.tags,
-            configuration: arguments.runConfiguration
+            configuration: arguments.runConfiguration(profile: profile)
         )
 
         writeLastRun(
@@ -109,6 +113,35 @@ public extension TestFlowCLI {
 }
 
 private extension TestFlowCLI {
+    static func resolvedProfile<Registry: TestFlowRegistry>(
+        suite: Registry.Type,
+        arguments: TestFlowArguments
+    ) -> TestFlowProfile? {
+        guard let profileID = arguments.profile ?? suite.defaultProfile else {
+            return nil
+        }
+
+        guard let profile = suite.profiles.first(
+            where: {
+                $0.id == profileID
+            }
+        ) else {
+            print("Unknown test profile '\(profileID)'.")
+
+            if !suite.profiles.isEmpty {
+                print("Available profiles:")
+
+                for profile in suite.profiles {
+                    print("    \(profile.id)")
+                }
+            }
+
+            Foundation.exit(2)
+        }
+
+        return profile
+    }
+
     static func writeLastRun(
         title: String,
         results: [TestFlowResult],
@@ -190,6 +223,7 @@ private extension TestFlowCLI {
         print("    flowtest --tag <tag>")
         print("    flowtest --skip-tag <tag>")
         print("    flowtest --match <text>")
+        print("    flowtest --profile <profile>")
         print("    flowtest --plain")
         print("    flowtest --json")
         print("    flowtest --verbose")
@@ -202,6 +236,20 @@ private extension TestFlowCLI {
         print("    flowtest --snapshot-dir <path>")
         print("    flowtest --last-run-file <path>")
         print("")
+        if !suite.profiles.isEmpty {
+            print("profiles:")
+
+            for profile in suite.profiles {
+                let suffix = profile.id == suite.defaultProfile
+                    ? " (default)"
+                    : ""
+
+                print("    \(profile.id)\(suffix)")
+            }
+
+            print("")
+        }
+
         print("available:")
 
         for flow in suite.flows {
