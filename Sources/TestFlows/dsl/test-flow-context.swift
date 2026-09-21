@@ -2,7 +2,7 @@ import Testing
 public actor TestFlowContext {
     public nonisolated let files: TestFlowFiles
 
-    private var diagnostics: [TestFlowDiagnostic] = []
+    private var diagnostics: [TestDiagnostic] = []
     private let interaction: any TestFlowInteraction
 
     public init(
@@ -92,7 +92,7 @@ public actor TestFlowContext {
     }
 
     public func add(
-        _ diagnostic: TestFlowDiagnostic
+        _ diagnostic: TestDiagnostic
     ) {
         diagnostics.append(
             diagnostic
@@ -211,7 +211,7 @@ public actor TestFlowContext {
         )
     }
 
-    public func snapshot() -> [TestFlowDiagnostic] {
+    public func snapshot() -> [TestDiagnostic] {
         diagnostics
     }
 }

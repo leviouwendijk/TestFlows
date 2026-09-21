@@ -158,7 +158,7 @@ private struct EncodedTestFlowStep: Encodable {
 }
 
 private struct EncodedTestFlowDiagnostic: Encodable {
-    var diagnostic: TestFlowDiagnostic
+    var diagnostic: TestDiagnostic
 
     enum CodingKeys: String, CodingKey {
         case type

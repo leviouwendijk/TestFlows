@@ -205,7 +205,7 @@ private extension TestFlowRunner {
                 startedAt: startedAt,
                 endedAt: Date(),
                 tags: testCase.tags,
-                diagnostics: TestFlowErrorDiagnostics.diagnostics(
+                diagnostics: TestErrorDiagnostics.diagnostics(
                     for: error
                 )
             )

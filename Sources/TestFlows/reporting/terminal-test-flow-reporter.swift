@@ -201,7 +201,7 @@ private extension TerminalTestFlowRenderer {
     func visibleResultDiagnostics(
         for result: TestFlowResult,
         configuration: TestFlowReportConfiguration
-    ) -> [TestFlowDiagnostic] {
+    ) -> [TestDiagnostic] {
         guard configuration.verbose || result.isFailure else {
             return result.diagnostics
         }
@@ -263,7 +263,7 @@ private extension TerminalTestFlowRenderer {
     }
 
     func appendStepDiagnostic(
-        _ diagnostic: TestFlowDiagnostic,
+        _ diagnostic: TestDiagnostic,
         to lines: inout [String],
         layout: TerminalTestFlowReportLayout,
         configuration: TestFlowReportConfiguration
@@ -377,7 +377,7 @@ private extension TerminalTestFlowRenderer {
     }
 
     func appendDiagnostic(
-        _ diagnostic: TestFlowDiagnostic,
+        _ diagnostic: TestDiagnostic,
         to lines: inout [String],
         layout: TerminalTestFlowReportLayout,
         configuration: TestFlowReportConfiguration,

@@ -40,7 +40,7 @@ public struct TestFlowScript: Sendable {
                         "failed_action",
                         "files.prepare"
                     )
-                ] + TestFlowErrorDiagnostics.diagnostics(
+                ] + TestErrorDiagnostics.diagnostics(
                     for: error
                 )
             )
@@ -98,7 +98,7 @@ public struct TestFlowScript: Sendable {
             } catch let skip as TestFlowSkip {
                 let actionEndedAt = Date()
                 let after = await context.snapshot()
-                let skipDiagnostics = skip.testFlowDiagnostics
+                let skipDiagnostics = skip.testDiagnostics
 
                 steps.append(
                     .skipped(
@@ -129,7 +129,7 @@ public struct TestFlowScript: Sendable {
             } catch {
                 let actionEndedAt = Date()
                 let after = await context.snapshot()
-                let errorDiagnostics = TestFlowErrorDiagnostics.diagnostics(
+                let errorDiagnostics = TestErrorDiagnostics.diagnostics(
                     for: error
                 )
 
@@ -188,9 +188,9 @@ public struct TestFlowScript: Sendable {
 
 private extension TestFlowScript {
     func newDiagnostics(
-        before: [TestFlowDiagnostic],
-        after: [TestFlowDiagnostic]
-    ) -> [TestFlowDiagnostic] {
+        before: [TestDiagnostic],
+        after: [TestDiagnostic]
+    ) -> [TestDiagnostic] {
         guard after.count > before.count else {
             return []
         }

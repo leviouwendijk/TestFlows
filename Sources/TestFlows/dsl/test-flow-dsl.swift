@@ -71,7 +71,7 @@ public func Check(
 
 public func Skip(
     _ reason: String,
-    diagnostics: [TestFlowDiagnostic] = []
+    diagnostics: [TestDiagnostic] = []
 ) -> TestFlowAction {
     TestFlowAction(
         name: "skip",
@@ -87,7 +87,7 @@ public func Skip(
 public func Skip(
     if condition: Bool,
     _ reason: String,
-    diagnostics: [TestFlowDiagnostic] = []
+    diagnostics: [TestDiagnostic] = []
 ) -> TestFlowAction {
     TestFlowAction(
         name: "skip.if",
@@ -104,7 +104,7 @@ public func Skip(
 public func Skip(
     unless condition: Bool,
     _ reason: String,
-    diagnostics: [TestFlowDiagnostic] = []
+    diagnostics: [TestDiagnostic] = []
 ) -> TestFlowAction {
     TestFlowAction(
         name: "skip.unless",
