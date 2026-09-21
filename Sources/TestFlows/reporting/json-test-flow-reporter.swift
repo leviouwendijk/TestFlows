@@ -1,3 +1,4 @@
+import Testing
 import Foundation
 
 public struct JSONTestFlowReporter: TestFlowReporting {

@@ -1,3 +1,4 @@
+import Testing
 public func Vulnerability(
     _ title: String,
     id: TestFlowSecurityID? = nil,

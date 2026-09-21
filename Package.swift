@@ -15,6 +15,7 @@ let package = Package(
         ),
     ],
     dependencies: [
+        .package(url: "https://github.com/leviouwendijk/Testing.git", branch: "master"),
         .package(url: "https://github.com/leviouwendijk/Primitives.git", branch: "master"),
         // .package(url: "https://github.com/leviouwendijk/Writers.git", branch: "master"),
         // .package(url: "https://github.com/leviouwendijk/Readers.git", branch: "master"),
@@ -40,6 +41,7 @@ let package = Package(
         .target(
             name: "TestFlows",
             dependencies: [
+                .product(name: "Testing", package: "Testing"),
                 .product(name: "Primitives", package: "Primitives"),
                 .product(name: "Difference", package: "Difference"),
                 .product(name: "ANSI", package: "ANSI"),
